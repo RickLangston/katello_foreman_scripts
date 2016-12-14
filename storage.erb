@@ -1,0 +1,127 @@
+# Storage and partition configurations
+# snippet to check for os type and setup partitions base on findings
+# 
+# This snippet is called from the default partition table
+#
+<% os_major = @host.operatingsystem.major.to_i %>
+<% os_minor = @host.operatingsystem.minor.to_i %>
+
+# RHEL configurations 5
+#default
+<% if @host.params['oracle_11.2g'] == "false"  and os_major == 5 -%>
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext3 --size=100 --asprimary
+part /usr/local --fstype ext4 --size=2048 --asprimary
+part /home --fstype ext4 --size=8192
+part swap --size=2048
+part /var --fstype ext4 --size=10240
+part / --fstype ext4 --size=10240 --asprimary
+part swap --size=2049
+part /tmp --fstype ext4 --size=12288
+<% end %>
+
+# oracle
+<% if @host.params['oracle_11.2g'] == "true"  and os_major == 5 -%>
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext3 --size=100 --asprimary
+part /usr/local --fstype ext4 --size=2048 --asprimary
+part /home --fstype ext4 --size=8192
+part /var --fstype ext4 --size=10240
+part / --fstype ext4 --size=10240 --asprimary
+part /tmp --fstype ext4 --size=12288
+part swap --size=4096
+part swap --size=4097
+part swap --size=4098
+part swap --size=4099
+<% end %>
+
+# RHEL configurations 6 Need to adjust back to sda disk removed for dell usb issues
+#default
+<% if @host.params['oracle_11.2g'] == "false" and  @host.params['san_boot'] == "false" and os_major == 6 and @host.params['dell_prov'] == "false" and  @host.params['vm_template'] == "false" -%>
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext4 --size=500 --asprimary --ondisk=sda
+part /usr/local --fstype ext4 --size=2048 --asprimary --ondisk=sda
+part /home --fstype ext4 --size=8192 --ondisk=sda
+part swap --size=2048 --ondisk=sda
+part /var --fstype ext4 --size=10240 --ondisk=sda 
+part / --fstype ext4 --size=10240 --asprimary --ondisk=sda
+part swap --size=2049 --ondisk=sda
+part /tmp --fstype ext4 --size=12288 --ondisk=sda 
+part /u01 --fstype ext4 --size=1 --grow --ondisk=sda
+<% end %>
+
+# Hack for dell virt cd crap Need a better way
+<% if @host.params['oracle_11.2g'] == "false" and  @host.params['san_boot'] == "false" and os_major == 6 and @host.params['dell_prov'] == "true"-%>
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext4 --size=500 --asprimary --ondisk=sdb
+part /usr/local --fstype ext4 --size=2048 --asprimary --ondisk=sdb
+part /home --fstype ext4 --size=8192 --ondisk=sdb
+part swap --size=2048 --ondisk=sdb
+part /var --fstype ext4 --size=10240 --ondisk=sdb 
+part / --fstype ext4 --size=10240 --asprimary --ondisk=sdb
+part swap --size=2049 --ondisk=sdb
+part /tmp --fstype ext4 --size=12288 --ondisk=sdb 
+part /u01 --fstype ext4 --size=1 --grow --ondisk=sdb
+<% end %>
+
+# oracle
+<% if @host.params['oracle_11.2g'] == "true"  and os_major == 6 -%>
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext4 --size=500 --asprimary --ondisk=sda
+part /usr/local --fstype ext4 --size=2048 --asprimary --ondisk=sda
+part /home --fstype ext4 --size=8192 --ondisk=sda
+part /var --fstype ext4 --size=10240 --ondisk=sda
+part / --fstype ext4 --size=10240 --asprimary --ondisk=sda
+part /tmp --fstype ext4 --size=12288 --ondisk=sda
+part swap --size=4096 --ondisk=sda
+part swap --size=4097 --ondisk=sda
+part swap --size=4098 --ondisk=sda
+part swap --size=4099 --ondisk=sda
+part /u01 --size=1 --grow --ondisk=sda
+<% end %>
+
+# RHEL/CENTOS configurations 7 **** Harding process started **** Need to address dell configurations with sdb
+<% if os_major == 7 -%>
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext4 --size=500 --asprimary --ondisk=sdb
+part swap --size=2048 --ondisk=sdb
+part swap --size=2048 --ondisk=sdb
+part pv.04 --size=1000 --grow --maxsize=100000 --ondisk=sdb
+volgroup vg00 pv.04
+logvol /home --vgname=vg00 --fstype=xfs --fsoptions=nobarrier,nodev --size=8192 --name=lvhome
+logvol /tmp --vgname=vg00 --fstype=xfs --fsoptions=nobarrier,nodev,nosuid,noexec --size=12288 --name=lvtmp
+logvol / --vgname=vg00 --fstype=xfs --fsoptions=nobarrier --size=10240 --name=lvroot
+logvol /var --vgname=vg00 --fstype=xfs --fsoptions=nobarrier --size=10240 --name=lvvar
+logvol /usr/local --vgname=vg00 --fstype=xfs --fsoptions=nobarrier --size=2048 --name=lvusrlocal
+<% end %>
+
+# for san boot systems RHEL 6.2 and above
+<% if @host.params['san_boot'] == "true"  and os_major >= 6 and os_minor >= 2 -%>
+zerombr
+clearpart --all --initlabel --drives=mpatha
+bootloader --location mbr --driveorder=mapper/mpatha
+ignoredisk --only-use=mpatha
+part /boot --fstype ext4 --size=500 --asprimary --ondisk=mapper/mpatha
+part /usr/local --fstype ext4 --size=2048 --asprimary --ondisk=mapper/mpatha
+part /home --fstype ext4 --size=8192 --ondisk=mapper/mpatha
+part swap --size=2048 --ondisk=mapper/mpatha
+part /var --fstype ext4 --size=10240 --ondisk=mapper/mpatha
+part / --fstype ext4 --size=10240 --asprimary --ondisk=mapper/mpatha
+part swap --size=2049 --ondisk=mapper/mpatha
+part /tmp --fstype ext4 --size=12288 --ondisk=mapper/mpatha
+part /u01 --fstype ext4 --size=1 --grow --ondisk=mapper/mpatha
+<% end %>
+
+<% if @host.params['vm_template'] == "true"  and os_major >= 6 -%>
+zerombr
+clearpart --all --initlabel
+part /boot --fstype ext4 --size=500 --asprimary --ondisk=sda
+part swap --size=2048 --asprimary --ondisk=sda
+part / --fstype ext4 --size=1 --grow --asprimary --ondisk=sda
+<% end %>
